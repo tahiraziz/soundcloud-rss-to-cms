@@ -1,0 +1,9 @@
+{
+  "id": "9839b6",
+  "name": "Soundcloud Rss To Cms",
+  "modes": [
+    "configureManagedCollection",
+    "syncManagedCollection"
+  ],
+  "icon": "/icon.svg"
+}
