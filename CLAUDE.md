@@ -23,6 +23,16 @@ Full spec: see PRD.md
 - Notes field uses <description>, fallback <itunes:summary>. Not <content:encoded>.
 - Check node_modules/framer-plugin TypeScript types before writing any Framer
   CMS API calls — don't guess method names.
+- **Feed fetching goes through a Cloudflare Worker proxy, not directly to
+  SoundCloud.** SoundCloud's CDN locks CORS to a third-party origin, which
+  blocks direct browser fetch from the plugin. The Worker fetches the feed
+  server-side and returns it with an open CORS header; the plugin fetches
+  from the Worker's URL. This is already implemented and deployed — don't
+  attempt to fetch the SoundCloud feed URL directly from plugin code, and
+  don't reintroduce a "no backend" fetch approach. If image URLs
+  (itunes:image) turn out to hit the same CORS wall during asset upload,
+  they may need to route through the same Worker — confirm by testing,
+  don't assume it's fine either way.
 
 ## Workflow
 - Build in phases (see PRD §4-6). Confirm one phase works before moving to the next.

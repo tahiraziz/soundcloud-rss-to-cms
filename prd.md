@@ -8,6 +8,7 @@ A Framer plugin that imports podcast episodes from a SoundCloud RSS feed into a 
 - Feed is standard RSS 2.0 + iTunes podcast namespace. Structure:
   - `<channel>` — show-level metadata (title, description, image, etc.) — **ignored** for import purposes.
   - `<item>` (repeated, newest first) — one per episode.
+- **Fetched via a Cloudflare Worker proxy, not directly from the browser.** SoundCloud's CDN returns a hardcoded `Access-Control-Allow-Origin` locked to a specific third-party domain, which blocks direct browser-side reads from the Framer plugin (confirmed via header inspection — not a caching artifact). The plugin fetches the feed through our own Worker, which fetches server-side (no CORS restriction applies server-to-server) and returns the raw feed with an open CORS header. See §9 for the proxy's role in the architecture.
 
 ## 3. Field Mapping (RSS → CMS)
 
@@ -60,8 +61,8 @@ Dedup key (not a visible CMS field, used internally): `<guid>` if present, else 
 ## 9. Technical Notes
 - Built with `framer-plugin` SDK, using the CMS Collection API for reading existing items and creating new ones.
 - Target collection is a plugin-created **Managed Collection** (confirmed via Framer's "Create Collection" flow), not an existing user collection.
-- RSS fetch/parse via `DOMParser` (client-side XML parsing) — no backend needed.
-- Image URLs pulled from `itunes:image` are uploaded to Framer's CMS image field via the plugin's asset upload API.
+- **Fetch architecture (revised from initial "no backend needed" assumption):** a Cloudflare Worker acts as a CORS proxy — it fetches the RSS feed server-side and returns it with an open `Access-Control-Allow-Origin` header. The plugin's fetch call points at the Worker's URL, not SoundCloud's feed URL directly. This is already implemented and deployed. The XML itself is still parsed client-side in the plugin via `DOMParser` — only the fetch hop changed, not the parsing logic.
+- Image URLs pulled from `itunes:image` are uploaded to Framer's CMS image field via the plugin's asset upload API. **Open question:** confirm whether image URLs also hit the same CORS restriction and need to route through the Worker, or whether Framer's asset upload API fetches them server-side on Framer's end (in which case no proxying is needed for images specifically) — worth explicitly testing rather than assuming either way, since the audio/RSS CORS issue didn't surface until real browser testing.
 - As defense-in-depth alongside the whole-item skip (§4), fields can additionally be defined with `userEditable: true` via `collection.setFields()` (available since it's a Managed Collection) — Framer's own `addItems()` will then silently no-op on those fields even on a full write, protecting against future manual CMS edits to fields the plugin doesn't otherwise track.
 
 ## 10. Estimate
