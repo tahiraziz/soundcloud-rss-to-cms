@@ -15,6 +15,36 @@ const cases: Array<{ name: string; input: string; expected: ReturnType<typeof pa
         expected: { title: "Loose Spacing", season: 3, episode: 5 },
     },
     {
+        name: "primary format, bullet separator",
+        input: "Episode 7.3 • Mercy",
+        expected: { title: "Mercy", season: 7, episode: 3 },
+    },
+    {
+        name: "primary format, pipe separator",
+        input: "Episode 4.23 | Mecca",
+        expected: { title: "Mecca", season: 4, episode: 23 },
+    },
+    {
+        name: "primary format, space after the dot",
+        input: "Episode 10. 2 - The Unseen",
+        expected: { title: "The Unseen", season: 10, episode: 2 },
+    },
+    {
+        name: "primary format, Epsiode typo",
+        input: "Epsiode 4.21 | Seclusion",
+        expected: { title: "Seclusion", season: 4, episode: 21 },
+    },
+    {
+        name: "flat episode numbering, no season in title, season assumed 1",
+        input: "Episode 1 | Nafs",
+        expected: { title: "Nafs", season: 1, episode: 1 },
+    },
+    {
+        name: "flat episode numbering, two-digit episode",
+        input: "Episode 30 | Joy",
+        expected: { title: "Joy", season: 1, episode: 30 },
+    },
+    {
         name: "fallback: SxEy, title kept as-is",
         input: "S3E12",
         expected: { title: "S3E12", season: 3, episode: 12 },
