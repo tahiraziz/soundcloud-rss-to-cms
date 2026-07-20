@@ -22,14 +22,14 @@ A Framer plugin that imports podcast episodes from a SoundCloud RSS feed into a 
 | Season Number | Number | Not in feed — parsed from title prefix (see §5) |
 | Episode Number | Number | Not in feed — parsed from title prefix (see §5) |
 
-Dedup key (not a visible CMS field, used internally): `<guid>` if present, else `<enclosure url>`, stored via Framer CMS's item ID matching so re-runs can detect "already imported."
+Dedup key (not a visible CMS field, used internally): `<guid>` if present, else `<enclosure url>`. Since this is a plugin-created **Managed Collection**, the dedup key is used directly as the CMS item's own `id` on creation — no separate metadata storage needed. Re-runs call `getItemIds()` and compare against ids derived from the current feed to detect "already imported."
 
 ## 4. Import Behavior
 - **Parse:** Fetch feed, parse all `<item>` elements in document order (feed is newest-first).
 - **Diff:** Compare against existing CMS collection items using the dedup key.
 - **Import all new items** — every episode newer than the newest one already in the CMS gets added (not just the single latest), so no episodes are missed if multiple were published between runs.
 - **Existing items are never modified** — if an episode's dedup key already exists in the CMS, it is skipped entirely (title, notes, audio, art, date — nothing is overwritten). This protects manual post-processing.
-- No delete/prune behavior — plugin only ever adds.
+- No delete/prune behavior — plugin only ever adds. This is a deliberate deviation from the official CMS starter template's default sync pattern, which reconciles by deleting any existing CMS item not present in the current feed ("remove unseen items") — that behavior must be explicitly omitted, not inherited from the starter. (Confirmed the feed contains full episode history, so this is unlikely to come up in practice, but the rule holds regardless.)
 
 ## 5. Season / Episode Number Parsing
 - The feed's actual title format is: `Episode <season>.<episode> - <Title>` (e.g. `"Episode 11.27 - Title"` → Season 11, Episode 27, Title = "Title").
@@ -59,8 +59,10 @@ Dedup key (not a visible CMS field, used internally): `<guid>` if present, else 
 
 ## 9. Technical Notes
 - Built with `framer-plugin` SDK, using the CMS Collection API for reading existing items and creating new ones.
+- Target collection is a plugin-created **Managed Collection** (confirmed via Framer's "Create Collection" flow), not an existing user collection.
 - RSS fetch/parse via `DOMParser` (client-side XML parsing) — no backend needed.
 - Image URLs pulled from `itunes:image` are uploaded to Framer's CMS image field via the plugin's asset upload API.
+- As defense-in-depth alongside the whole-item skip (§4), fields can additionally be defined with `userEditable: true` via `collection.setFields()` (available since it's a Managed Collection) — Framer's own `addItems()` will then silently no-op on those fields even on a full write, protecting against future manual CMS edits to fields the plugin doesn't otherwise track.
 
 ## 10. Estimate
 **~4–6 hours** of focused build time with Sonnet 5 High, covering: RSS fetch/parse, diffing logic, season/episode regex parsing, the 2-column mapping preview UI, import execution with image upload, and error-state handling. This assumes the Framer CMS field schema already exists (or the plugin creates it once on first run) — schema creation logic is straightforward and included in the estimate.
