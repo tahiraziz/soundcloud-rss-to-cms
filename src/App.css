@@ -187,3 +187,39 @@ input[type="text"]:disabled,
 .mapping footer > button {
     text-transform: capitalize;
 }
+
+.error-message {
+    color: #f65;
+    font-size: 0.85em;
+}
+
+.preview-fields {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+    margin-bottom: auto;
+    padding-bottom: 10px;
+}
+
+.preview-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.preview-field-name {
+    font-weight: 600;
+    color: var(--framer-color-text);
+}
+
+.preview-field-source {
+    font-size: 0.85em;
+    color: var(--framer-color-text-tertiary);
+}
+
+.import-summary {
+    color: var(--framer-color-text-secondary);
+    font-size: 0.85em;
+    text-align: center;
+}

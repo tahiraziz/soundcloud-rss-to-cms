@@ -1,74 +1,41 @@
 import "./App.css"
 
 import { framer, type ManagedCollection } from "@framer/plugin"
-import { useEffect, useLayoutEffect, useState } from "react"
-import { type DataSource, getDataSource } from "./data"
-import { FieldMapping } from "./FieldMapping"
-import { SelectDataSource } from "./SelectDataSource"
+import { useLayoutEffect, useState } from "react"
+import { type FetchedFeed, FeedUrlInput } from "./FeedUrlInput"
+import { ImportPreview } from "./ImportPreview"
 
 interface AppProps {
     collection: ManagedCollection
-    previousDataSourceId: string | null
-    previousSlugFieldId: string | null
 }
 
-export function App({ collection, previousDataSourceId, previousSlugFieldId }: AppProps) {
-    const [dataSource, setDataSource] = useState<DataSource | null>(null)
-    const [isLoadingDataSource, setIsLoadingDataSource] = useState(Boolean(previousDataSourceId))
+export function App({ collection }: AppProps) {
+    const [fetchedFeed, setFetchedFeed] = useState<FetchedFeed | null>(null)
 
     useLayoutEffect(() => {
-        const hasDataSourceSelected = Boolean(dataSource)
+        const hasFetchedFeed = Boolean(fetchedFeed)
 
         framer.showUI({
-            width: hasDataSourceSelected ? 360 : 260,
-            height: hasDataSourceSelected ? 425 : 340,
-            minWidth: hasDataSourceSelected ? 360 : undefined,
-            minHeight: hasDataSourceSelected ? 425 : undefined,
-            resizable: hasDataSourceSelected,
+            width: hasFetchedFeed ? 360 : 260,
+            height: hasFetchedFeed ? 425 : 340,
+            minWidth: hasFetchedFeed ? 360 : undefined,
+            minHeight: hasFetchedFeed ? 425 : undefined,
+            resizable: hasFetchedFeed,
         })
-    }, [dataSource])
+    }, [fetchedFeed])
 
-    useEffect(() => {
-        if (!previousDataSourceId) {
-            return
-        }
-
-        const abortController = new AbortController()
-
-        setIsLoadingDataSource(true)
-        getDataSource(previousDataSourceId, abortController.signal)
-            .then(setDataSource)
-            .catch(error => {
-                if (abortController.signal.aborted) return
-
-                console.error(error)
-                framer.notify(
-                    `Error loading previously configured data source “${previousDataSourceId}”. Check the logs for more details.`,
-                    {
-                        variant: "error",
-                    }
-                )
-            })
-            .finally(() => {
-                if (abortController.signal.aborted) return
-
-                setIsLoadingDataSource(false)
-            })
-
-        return () => abortController.abort()
-    }, [previousDataSourceId])
-
-    if (isLoadingDataSource) {
-        return (
-            <main className="loading">
-                <div className="framer-spinner" />
-            </main>
-        )
+    if (!fetchedFeed) {
+        return <FeedUrlInput collection={collection} onFetched={setFetchedFeed} />
     }
 
-    if (!dataSource) {
-        return <SelectDataSource onSelectDataSource={setDataSource} />
-    }
-
-    return <FieldMapping collection={collection} dataSource={dataSource} initialSlugFieldId={previousSlugFieldId} />
+    return (
+        <ImportPreview
+            newEpisodes={fetchedFeed.newEpisodes}
+            totalEpisodeCount={fetchedFeed.episodes.length}
+            onImport={() => {
+                // Phase 5: wire collection.addItems()/setItemOrder() here.
+                framer.notify("Import isn't wired up yet — coming in the next phase.", { variant: "info" })
+            }}
+        />
+    )
 }

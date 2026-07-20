@@ -1,3 +1,7 @@
 /dist
 /node_modules
 /plugin.zip
+.env.local
+worker/node_modules
+worker/.wrangler
+.DS_Store

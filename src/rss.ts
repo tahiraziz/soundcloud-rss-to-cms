@@ -13,8 +13,17 @@ export interface ParsedEpisode {
     episode: number | null
 }
 
+// SoundCloud's feed CDN doesn't send CORS headers for our origin, so a
+// direct browser fetch() is blocked. When configured, route through a
+// small proxy (see worker/) that fetches server-side and re-serves with
+// permissive CORS headers. Falls back to a direct fetch when unset, so
+// this still works unmodified in Node (e.g. the scripts/test-*.ts scripts).
+const RSS_PROXY_URL = import.meta.env?.VITE_RSS_PROXY_URL
+
 export async function fetchAndParseFeed(feedUrl: string): Promise<ParsedEpisode[]> {
-    const response = await fetch(feedUrl)
+    const requestUrl = RSS_PROXY_URL ? `${RSS_PROXY_URL}?url=${encodeURIComponent(feedUrl)}` : feedUrl
+
+    const response = await fetch(requestUrl)
     if (!response.ok) {
         throw new Error(`Failed to fetch feed: ${response.status} ${response.statusText}`)
     }
