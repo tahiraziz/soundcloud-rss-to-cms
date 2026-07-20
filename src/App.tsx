@@ -3,39 +3,72 @@ import "./App.css"
 import { framer, type ManagedCollection } from "@framer/plugin"
 import { useLayoutEffect, useState } from "react"
 import { type FetchedFeed, FeedUrlInput } from "./FeedUrlInput"
+import { importEpisodes, type ImportItemResult } from "./importEpisodes"
 import { ImportPreview } from "./ImportPreview"
+import { ImportResult } from "./ImportResult"
 
 interface AppProps {
     collection: ManagedCollection
 }
 
+type Screen =
+    | { type: "input" }
+    | { type: "preview"; feed: FetchedFeed }
+    | { type: "importing"; feed: FetchedFeed }
+    | { type: "result"; results: ImportItemResult[] }
+
 export function App({ collection }: AppProps) {
-    const [fetchedFeed, setFetchedFeed] = useState<FetchedFeed | null>(null)
+    const [screen, setScreen] = useState<Screen>({ type: "input" })
 
     useLayoutEffect(() => {
-        const hasFetchedFeed = Boolean(fetchedFeed)
+        const isCompact = screen.type === "input"
 
         framer.showUI({
-            width: hasFetchedFeed ? 360 : 260,
-            height: hasFetchedFeed ? 425 : 340,
-            minWidth: hasFetchedFeed ? 360 : undefined,
-            minHeight: hasFetchedFeed ? 425 : undefined,
-            resizable: hasFetchedFeed,
+            width: isCompact ? 260 : 360,
+            height: isCompact ? 340 : 425,
+            minWidth: isCompact ? undefined : 360,
+            minHeight: isCompact ? undefined : 425,
+            resizable: !isCompact,
         })
-    }, [fetchedFeed])
+    }, [screen.type])
 
-    if (!fetchedFeed) {
-        return <FeedUrlInput collection={collection} onFetched={setFetchedFeed} />
+    if (screen.type === "input") {
+        return <FeedUrlInput collection={collection} onFetched={feed => setScreen({ type: "preview", feed })} />
+    }
+
+    if (screen.type === "preview") {
+        const { feed } = screen
+        return (
+            <ImportPreview
+                newEpisodes={feed.newEpisodes}
+                totalEpisodeCount={feed.episodes.length}
+                onImport={async () => {
+                    setScreen({ type: "importing", feed })
+                    try {
+                        const { results } = await importEpisodes(collection, feed.newEpisodes)
+                        setScreen({ type: "result", results })
+                    } catch (error) {
+                        console.error(error)
+                        framer.notify("Import failed. Check the logs for more details.", { variant: "error" })
+                        setScreen({ type: "preview", feed })
+                    }
+                }}
+            />
+        )
+    }
+
+    if (screen.type === "importing") {
+        return (
+            <main className="loading">
+                <div className="framer-spinner" />
+            </main>
+        )
     }
 
     return (
-        <ImportPreview
-            newEpisodes={fetchedFeed.newEpisodes}
-            totalEpisodeCount={fetchedFeed.episodes.length}
-            onImport={() => {
-                // Phase 5: wire collection.addItems()/setItemOrder() here.
-                framer.notify("Import isn't wired up yet — coming in the next phase.", { variant: "info" })
-            }}
+        <ImportResult
+            results={screen.results}
+            onDone={() => framer.closePlugin("Import complete", { variant: "success" })}
         />
     )
 }

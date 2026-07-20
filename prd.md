@@ -25,6 +25,8 @@ A Framer plugin that imports podcast episodes from a SoundCloud RSS feed into a 
 
 Dedup key (not a visible CMS field, used internally): `<guid>` if present, else `<enclosure url>`. Since this is a plugin-created **Managed Collection**, the dedup key is used directly as the CMS item's own `id` on creation — no separate metadata storage needed. Re-runs call `getItemIds()` and compare against ids derived from the current feed to detect "already imported."
 
+**Slug uniqueness:** episode titles are not unique across the feed (e.g. multiple episodes titled "Mercy" in different seasons, or two "Special" episodes with no season/episode parsed at all — confirmed live, Framer rejects a slug collision outright and fails that item). The slug is `<slugified title>-<season>-<episode>` when both are parsed (readable, matches how the show identifies episodes — e.g. `mercy-7-3`); for the handful of episodes with no season/episode, it falls back to `<slugified title>-<publish date>`, and finally to a track-id suffix only if that publish date is somehow missing too.
+
 ## 4. Import Behavior
 - **Parse:** Fetch feed, parse all `<item>` elements in document order (feed is newest-first).
 - **Diff:** Compare against existing CMS collection items using the dedup key.

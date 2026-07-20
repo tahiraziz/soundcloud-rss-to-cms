@@ -14,9 +14,15 @@ Full spec: see PRD.md
   if an episode were to disappear from the feed. Confirmed our feed always
   contains full episode history, so this shouldn't come up in practice,
   but the no-delete rule stands regardless.
-- Since this is a Managed Collection, `userEditable: true` can be set on
-  fields (e.g. Season, Episode) when calling `collection.setFields()`, as
-  a second layer of protection alongside the whole-item skip above.
+- **Do NOT set `userEditable: true` on the Season/Episode fields.** This was
+  tried as a "second layer of protection" alongside the whole-item skip, but
+  per the SDK's own `setFields()` doc comment, a `userEditable` field "can
+  no longer have their values set by the plugin when using `addItems`" —
+  that blocks the plugin from writing it on first creation too, not just on
+  update. Confirmed live: Season/Episode came through empty on import
+  because of this. The whole-item skip (previous rule) is the only
+  protection against overwriting user edits; it's already sufficient since
+  we never call `addItems` on an id already in the collection.
 - Title parsing: RSS `<title>` is "Episode <season>.<episode> - <Title>".
   Strip the prefix — only "<Title>" goes into the CMS title/slug field.
   Season/Episode numbers are parsed out into their own Number fields.
