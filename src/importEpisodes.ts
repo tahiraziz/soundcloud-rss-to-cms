@@ -6,18 +6,20 @@ import type {
 } from "@framer/plugin"
 import { deriveEpisodeId } from "./dedup"
 import type { ParsedEpisode } from "./rss"
+import { getSpecialsCount, resolveSeasonInfo, setSpecialsCount, type ResolvedEpisode } from "./seasonLabeling"
 
 // Idempotent — safe to call on every plugin open. setFields() re-declares
 // this exact set of fields each time; omitted fields would be removed, but
 // we always pass the full set, so this is a no-op when fields already match.
 //
-// Season/Episode are deliberately NOT userEditable: per the SDK's own
-// setFields() doc comment, a userEditable field "can no longer have their
-// values set by the plugin when using addItems" — that blocks the plugin
-// from populating it even on first creation, not just on update. Our real
-// protection against overwriting user edits is Phase 3's dedup (we never
-// call addItems on an id that already exists in the collection), so this
-// flag would add no protection while breaking initial population.
+// Season/Episode Number/Sort Order are deliberately NOT userEditable: per
+// the SDK's own setFields() doc comment, a userEditable field "can no
+// longer have their values set by the plugin when using addItems" — that
+// blocks the plugin from populating it even on first creation, not just on
+// update. Our real protection against overwriting user edits is the dedup
+// skip (we never call addItems on an id that already exists in the
+// collection), so this flag would add no protection while breaking initial
+// population.
 export const COLLECTION_FIELDS: ManagedCollectionFieldInput[] = [
     { id: "title", name: "Title", type: "string" },
     { id: "subtitle", name: "Subtitle", type: "string" },
@@ -25,8 +27,9 @@ export const COLLECTION_FIELDS: ManagedCollectionFieldInput[] = [
     { id: "audioUrl", name: "Audio URL", type: "string" },
     { id: "episodeArt", name: "Episode Art", type: "image" },
     { id: "publishedDate", name: "Published Date", type: "date" },
-    { id: "seasonNumber", name: "Season Number", type: "number" },
+    { id: "season", name: "Season", type: "string" },
     { id: "episodeNumber", name: "Episode Number", type: "number" },
+    { id: "sortOrder", name: "Season Sort Order", type: "number" },
 ]
 
 function slugify(value: string): string {
@@ -40,45 +43,28 @@ function slugify(value: string): string {
 
 // Titles repeat across episodes in this feed (e.g. multiple episodes named
 // "Mercy" in different seasons) — Framer rejects a slug collision outright,
-// so every slug is disambiguated with season/episode (readable, matches how
-// the show itself identifies episodes) rather than a raw id. A handful of
-// episodes have no season/episode parsed at all (e.g. "Special" one-offs,
-// some of which also repeat titles) — those fall back to the publish date,
-// still human-readable and unique in all realistic cases.
-function buildSlug(episode: ParsedEpisode): string {
-    const titleSlug = slugify(episode.title)
-
+// so every slug is disambiguated. Regular episodes use season/episode
+// (readable, matches how the show identifies episodes — e.g. "mercy-7-3").
+// Specials use their assigned sequence number instead, with the title
+// omitted entirely — some special titles are long, and the number alone is
+// already guaranteed unique.
+function buildSlug(episode: ParsedEpisode, resolved: ResolvedEpisode): string {
     if (episode.season !== null && episode.episode !== null) {
-        return `${titleSlug}-${episode.season}-${episode.episode}`
+        return `${slugify(episode.title)}-${episode.season}-${episode.episode}`
     }
-
-    const parsedDate = episode.pubDate ? new Date(episode.pubDate) : null
-    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
-        return `${titleSlug}-${parsedDate.toISOString().slice(0, 10)}`
-    }
-
-    const id = deriveEpisodeId(episode)
-    const trackId = /(\d+)$/.exec(id)?.[1]
-    return `${titleSlug}-${trackId ?? slugify(id).slice(-12)}`
+    return `specials-${resolved.episodeNumber}`
 }
 
-function buildFieldData(episode: ParsedEpisode, includeArt: boolean): FieldDataInput {
+function buildFieldData(episode: ParsedEpisode, resolved: ResolvedEpisode, includeArt: boolean): FieldDataInput {
     const fieldData: FieldDataInput = {
         title: { type: "string", value: episode.title },
         subtitle: { type: "string", value: episode.subtitle },
         notes: { type: "formattedText", value: episode.notes },
         audioUrl: { type: "string", value: episode.audioUrl },
         publishedDate: { type: "date", value: episode.pubDate ? new Date(episode.pubDate).toISOString() : null },
-    }
-
-    // Never default season/episode to 0 — NumberFieldDataEntryInput has no
-    // null case, so a missing value means omitting the key entirely rather
-    // than inventing a number.
-    if (episode.season !== null) {
-        fieldData.seasonNumber = { type: "number", value: episode.season }
-    }
-    if (episode.episode !== null) {
-        fieldData.episodeNumber = { type: "number", value: episode.episode }
+        season: { type: "string", value: resolved.seasonLabel },
+        episodeNumber: { type: "number", value: resolved.episodeNumber },
+        sortOrder: { type: "number", value: resolved.sortOrder },
     }
 
     if (includeArt && episode.artUrl) {
@@ -88,11 +74,11 @@ function buildFieldData(episode: ParsedEpisode, includeArt: boolean): FieldDataI
     return fieldData
 }
 
-export function buildItemInput(episode: ParsedEpisode, includeArt = true): ManagedCollectionItemInput {
+export function buildItemInput(episode: ParsedEpisode, resolved: ResolvedEpisode, includeArt = true): ManagedCollectionItemInput {
     return {
         id: deriveEpisodeId(episode),
-        slug: buildSlug(episode),
-        fieldData: buildFieldData(episode, includeArt),
+        slug: buildSlug(episode, resolved),
+        fieldData: buildFieldData(episode, resolved, includeArt),
     }
 }
 
@@ -129,12 +115,16 @@ export function missingRequiredFieldReason(episode: ParsedEpisode): string | nul
 // without the image before giving up on it entirely (PRD §7).
 async function importItemsIndividually(
     collection: ManagedCollection,
-    newEpisodes: ParsedEpisode[]
+    newEpisodes: ParsedEpisode[],
+    resolvedById: Map<string, ResolvedEpisode>
 ): Promise<ImportItemResult[]> {
     const results: ImportItemResult[] = []
 
     for (const episode of newEpisodes) {
-        const item = buildItemInput(episode)
+        const resolved = resolvedById.get(deriveEpisodeId(episode))
+        if (!resolved) throw new Error("Logic error: missing resolved season info for episode")
+
+        const item = buildItemInput(episode, resolved)
         try {
             await collection.addItems([item])
             results.push({ episode, status: "success" })
@@ -149,7 +139,7 @@ async function importItemsIndividually(
         }
 
         try {
-            await collection.addItems([buildItemInput(episode, false)])
+            await collection.addItems([buildItemInput(episode, resolved, false)])
             results.push({ episode, status: "success-no-image" })
         } catch (noArtError) {
             console.error(`Failed to import "${episode.title}" even without Episode Art:`, noArtError)
@@ -177,12 +167,29 @@ export async function importEpisodes(collection: ManagedCollection, newEpisodes:
     }
 
     if (validEpisodes.length > 0) {
+        const currentSpecialsCount = await getSpecialsCount(collection)
+        const { resolved, newSpecialsCount } = resolveSeasonInfo(validEpisodes, currentSpecialsCount)
+        const resolvedById = new Map(resolved.map(r => [deriveEpisodeId(r.episode), r]))
+
         try {
-            await collection.addItems(validEpisodes.map(episode => buildItemInput(episode)))
+            await collection.addItems(
+                validEpisodes.map(episode => {
+                    const info = resolvedById.get(deriveEpisodeId(episode))
+                    if (!info) throw new Error("Logic error: missing resolved season info for episode")
+                    return buildItemInput(episode, info)
+                })
+            )
             results.push(...validEpisodes.map(episode => ({ episode, status: "success" as const })))
         } catch (batchError) {
             console.error("Batch import failed, retrying items individually:", batchError)
-            results.push(...(await importItemsIndividually(collection, validEpisodes)))
+            results.push(...(await importItemsIndividually(collection, validEpisodes, resolvedById)))
+        }
+
+        // Advances even if some items above failed, so a Specials number is
+        // never reused across runs — the small chance of a permanent gap in
+        // the sequence is harmless, unlike a duplicate would be.
+        if (newSpecialsCount > currentSpecialsCount) {
+            await setSpecialsCount(collection, newSpecialsCount)
         }
     }
 
@@ -191,10 +198,10 @@ export async function importEpisodes(collection: ManagedCollection, newEpisodes:
         .map(result => deriveEpisodeId(result.episode))
 
     // New episodes are always newer than everything already in the
-    // collection (feed is newest-first, and Phase 3 only surfaces episodes
-    // not already present), so prepending them onto the existing order
-    // keeps the whole collection newest-to-oldest without depending on
-    // addItems()'s own (undocumented) insertion order.
+    // collection (feed is newest-first, and the dedup step only surfaces
+    // episodes not already present), so prepending them onto the existing
+    // order keeps the whole collection newest-to-oldest without depending
+    // on addItems()'s own (undocumented) insertion order.
     if (importedIds.length > 0) {
         await collection.setItemOrder([...importedIds, ...existingItemIds])
     }
