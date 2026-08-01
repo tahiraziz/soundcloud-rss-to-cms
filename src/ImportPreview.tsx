@@ -14,9 +14,9 @@ const FIELD_MAPPING_ROWS: FieldMappingRow[] = [
     { name: "Audio URL", source: "<enclosure url> → Plain text" },
     { name: "Episode Art", source: "itunes:image → Image" },
     { name: "Published Date", source: "<pubDate> → Date" },
-    { name: "Season", source: "Parsed from title, or \"Specials\" if unmatched → Plain text" },
-    { name: "Episode Number", source: "Parsed from title, or Specials sequence number → Number" },
-    { name: "Season Sort Order", source: "Season number, or fixed constant for Specials → Number" },
+    { name: "Season", source: "Parsed from title, or \"Special Episodes\" if unmatched → Plain text" },
+    { name: "Episode Number", source: "Parsed from title, or Special Episodes sequence number → Number" },
+    { name: "Season Sort Order", source: "Season number, or fixed constant for Special Episodes → Number" },
 ]
 
 interface ImportPreviewProps {

@@ -45,9 +45,9 @@ function slugify(value: string): string {
 // "Mercy" in different seasons) — Framer rejects a slug collision outright,
 // so every slug is disambiguated. Regular episodes use season/episode
 // (readable, matches how the show identifies episodes — e.g. "mercy-7-3").
-// Specials use their assigned sequence number instead, with the title
-// omitted entirely — some special titles are long, and the number alone is
-// already guaranteed unique.
+// Special Episodes use their assigned sequence number instead, with the
+// title omitted entirely — some special titles are long, and the number
+// alone is already guaranteed unique.
 function buildSlug(episode: ParsedEpisode, resolved: ResolvedEpisode): string {
     if (episode.season !== null && episode.episode !== null) {
         return `${slugify(episode.title)}-${episode.season}-${episode.episode}`
@@ -185,9 +185,10 @@ export async function importEpisodes(collection: ManagedCollection, newEpisodes:
             results.push(...(await importItemsIndividually(collection, validEpisodes, resolvedById)))
         }
 
-        // Advances even if some items above failed, so a Specials number is
-        // never reused across runs — the small chance of a permanent gap in
-        // the sequence is harmless, unlike a duplicate would be.
+        // Advances even if some items above failed, so a Special Episodes
+        // number is never reused across runs — the small chance of a
+        // permanent gap in the sequence is harmless, unlike a duplicate
+        // would be.
         if (newSpecialsCount > currentSpecialsCount) {
             await setSpecialsCount(collection, newSpecialsCount)
         }

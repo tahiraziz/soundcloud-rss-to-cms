@@ -46,7 +46,7 @@ function check(name: string, actual: unknown, expected: unknown) {
     check("regular episode: specials count unchanged", newSpecialsCount, 0)
 }
 
-// Specials get numbered oldest -> newest by pubDate, regardless of input
+// Special Episodes get numbered oldest -> newest by pubDate, regardless of input
 // array order, continuing from the starting count.
 {
     const oldest = makeEpisode({ title: "A", pubDate: "2020-01-01" })
@@ -60,7 +60,7 @@ function check(name: string, actual: unknown, expected: unknown) {
     check("specials: oldest gets number 1", byTitle.get("A")?.episodeNumber, 1)
     check("specials: middle gets number 2", byTitle.get("B")?.episodeNumber, 2)
     check("specials: newest gets number 3", byTitle.get("C")?.episodeNumber, 3)
-    check("specials: season label is 'Specials'", byTitle.get("A")?.seasonLabel, "Specials")
+    check("specials: season label is 'Special Episodes'", byTitle.get("A")?.seasonLabel, "Special Episodes")
     check("specials: sort order is the fixed constant", byTitle.get("A")?.sortOrder, SPECIALS_SORT_ORDER)
     check("specials: count advances by number of specials", newSpecialsCount, 3)
 }

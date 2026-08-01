@@ -27,17 +27,18 @@ Full spec: see PRD.md
   fallback (no season digit) assumes season 1. Strip the prefix — only
   "<Title>" goes into the CMS title/slug field for either format. If nothing
   matches, the episode is a Special, not left blank.
-- Season is a plain-text field (`"Season <N>"` or `"Specials"`), not a
+- Season is a plain-text field (`"Season <N>"` or `"Special Episodes"`), not a
   number — don't reintroduce a numeric Season field.
-- Specials: any episode that doesn't match the title-parsing patterns above.
-  Numbered oldest→newest, append-only — a new special always gets "current
-  highest Specials number + 1," existing ones are never renumbered. The
-  current count is tracked via `collection.setPluginData()` /
+- Special Episodes: any episode that doesn't match the title-parsing patterns
+  above. Numbered oldest→newest, append-only — a new special always gets
+  "current highest Special Episodes number + 1," existing ones are never
+  renumbered. The current count is tracked via `collection.setPluginData()` /
   `getPluginData()`, not by reading existing items — `ManagedCollection` has
   no method to read back existing items' field values, only `getItemIds()`.
-  Specials' `Season Sort Order` is the fixed constant `9999`, not a computed value —
-  a computed value would eventually collide with a real season number and
-  require rewriting every existing Specials item to fix.
+  Special Episodes' `Season Sort Order` is the fixed constant `9999`, not a
+  computed value — a computed value would eventually collide with a real
+  season number and require rewriting every existing Special Episodes item to
+  fix.
 - Notes field uses <description>, fallback <itunes:summary>. Not <content:encoded>.
 - Check node_modules/framer-plugin TypeScript types before writing any Framer
   CMS API calls — don't guess method names.
