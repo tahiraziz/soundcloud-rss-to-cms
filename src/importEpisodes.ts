@@ -44,15 +44,15 @@ function slugify(value: string): string {
 // Titles repeat across episodes in this feed (e.g. multiple episodes named
 // "Mercy" in different seasons) — Framer rejects a slug collision outright,
 // so every slug is disambiguated. Regular episodes use season/episode
-// (readable, matches how the show identifies episodes — e.g. "mercy-7-3").
+// (readable, matches how the show identifies episodes — e.g. "mercy-s7-e3").
 // Special Episodes use their assigned sequence number instead, with the
 // title omitted entirely — some special titles are long, and the number
 // alone is already guaranteed unique.
 function buildSlug(episode: ParsedEpisode, resolved: ResolvedEpisode): string {
     if (episode.season !== null && episode.episode !== null) {
-        return `${slugify(episode.title)}-${episode.season}-${episode.episode}`
+        return `${slugify(episode.title)}-s${episode.season}-e${episode.episode}`
     }
-    return `specials-${resolved.episodeNumber}`
+    return `specialepisodes-${resolved.episodeNumber}`
 }
 
 function buildFieldData(episode: ParsedEpisode, resolved: ResolvedEpisode, includeArt: boolean): FieldDataInput {
