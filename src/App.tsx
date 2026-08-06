@@ -12,7 +12,7 @@ interface AppProps {
 }
 
 type Screen =
-    | { type: "input" }
+    | { type: "input"; skipAutoFetch?: boolean }
     | { type: "preview"; feed: FetchedFeed }
     | { type: "importing"; feed: FetchedFeed }
     | { type: "result"; results: ImportItemResult[] }
@@ -33,7 +33,13 @@ export function App({ collection }: AppProps) {
     }, [screen.type])
 
     if (screen.type === "input") {
-        return <FeedUrlInput collection={collection} onFetched={feed => setScreen({ type: "preview", feed })} />
+        return (
+            <FeedUrlInput
+                collection={collection}
+                skipAutoFetch={screen.skipAutoFetch}
+                onFetched={feed => setScreen({ type: "preview", feed })}
+            />
+        )
     }
 
     if (screen.type === "preview") {
@@ -42,6 +48,7 @@ export function App({ collection }: AppProps) {
             <ImportPreview
                 newEpisodes={feed.newEpisodes}
                 totalEpisodeCount={feed.episodes.length}
+                onBack={() => setScreen({ type: "input", skipAutoFetch: true })}
                 onImport={async () => {
                     setScreen({ type: "importing", feed })
                     try {

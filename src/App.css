@@ -24,6 +24,31 @@ form {
     top: 0;
 }
 
+.preview-header {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.back-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--framer-color-text-secondary);
+    cursor: pointer;
+}
+
+.back-button:hover,
+.back-button:focus {
+    background-color: var(--framer-color-bg-tertiary);
+    color: var(--framer-color-text);
+}
+
 select {
     width: 100%;
 }

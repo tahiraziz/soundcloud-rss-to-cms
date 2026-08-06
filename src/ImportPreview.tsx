@@ -23,14 +23,28 @@ interface ImportPreviewProps {
     newEpisodes: ParsedEpisode[]
     totalEpisodeCount: number
     onImport: () => void
+    onBack: () => void
 }
 
-export function ImportPreview({ newEpisodes, totalEpisodeCount, onImport }: ImportPreviewProps) {
+export function ImportPreview({ newEpisodes, totalEpisodeCount, onImport, onBack }: ImportPreviewProps) {
     const newCount = newEpisodes.length
     const alreadyImportedCount = totalEpisodeCount - newCount
 
     return (
         <main className="framer-hide-scrollbar mapping">
+            <div className="preview-header">
+                <button type="button" className="back-button" onClick={onBack} aria-label="Change feed URL">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none">
+                        <path
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M10 3.5 5.5 8l4.5 4.5"
+                        />
+                    </svg>
+                </button>
+            </div>
             <hr className="sticky-divider" />
 
             <div className="preview-fields">

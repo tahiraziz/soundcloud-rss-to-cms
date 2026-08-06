@@ -49,7 +49,7 @@ Dedup key (not a visible CMS field, used internally): `<guid>` if present, else 
 - `Season Sort Order` for Special Episodes is the fixed constant `9999`, not a computed "current max season + 1." A computed value would eventually collide with a real season number reaching it, which would require rewriting every existing Special Episodes item's `Season Sort Order` to fix — conflicting with the append-only, no-modify-existing-items design. A sufficiently high fixed constant is set once and never needs revision.
 
 ## 6. Plugin UI
-1. **URL input** — paste RSS feed URL, "Fetch" button.
+1. **URL input** — paste RSS feed URL, "Fetch" button. The URL is saved (via `collection.setPluginData()`) after a successful fetch, and pre-filled on future launches — see §9. If a saved URL exists, the plugin auto-fetches it immediately on launch and skips straight to the field mapping preview (step 2), so re-syncing via the CMS panel's refresh action needs no manual input at all. A "back" button on the preview screen (step 2) returns here without auto-fetching, so the URL can be changed.
 2. **Field mapping preview** — after a successful fetch, display the *first item after channel metadata* (i.e., channel block is parsed but not shown) in a **2-column layout**:
    - Column 1: CMS field name (e.g. "Episode Art")
    - Column 2 (subtext under it): source + data type (e.g. "itunes:image → Image")
@@ -76,6 +76,7 @@ This is the plugin's own configuration UI. Season/Special Episodes browsing tabs
 - **Fetch architecture (revised from initial "no backend needed" assumption):** a Cloudflare Worker acts as a CORS proxy — it fetches the RSS feed server-side and returns it with an open `Access-Control-Allow-Origin` header. The plugin's fetch call points at the Worker's URL, not SoundCloud's feed URL directly. This is already implemented and deployed. The XML itself is still parsed client-side in the plugin via `DOMParser` — only the fetch hop changed, not the parsing logic.
 - Image URLs pulled from `itunes:image` are set directly as the CMS image field's value (a raw URL string, not a pre-uploaded asset). Confirmed live: Framer ingests external image URLs server-side — no CORS issue, no Worker proxying needed for images.
 - Special Episodes numbering uses `collection.setPluginData()` / `getPluginData()` as a persistent counter — see §5a for why (the Managed Collection API can't read back existing items' field values, so there's no other way to know the current count).
+- The feed URL is also persisted via `collection.setPluginData()` (separate key from the Specials counter), so re-syncing via the CMS panel's refresh action doesn't require re-pasting it — see §6.
 - Season, Episode Number, and Season Sort Order are never `userEditable` — a `userEditable` field blocks the plugin from setting its value via `addItems()` at all, including on first creation, not just later updates. The whole-item skip (§4) is the only protection against overwriting user edits, and is sufficient on its own.
 - **Migration note:** the `Season` (string) + `Season Sort Order` fields replace the old `Season Number` (number) field — a breaking schema change. Rolled out via a one-time delete-and-reimport of all existing CMS items (same approach used for the earlier `userEditable` fix), not an in-place migration.
 

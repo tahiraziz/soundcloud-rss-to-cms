@@ -1,5 +1,5 @@
 import { type ManagedCollection } from "@framer/plugin"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { getNewEpisodes } from "./dedup"
 import { fetchAndParseFeed, type ParsedEpisode } from "./rss"
 
@@ -8,24 +8,30 @@ export interface FetchedFeed {
     newEpisodes: ParsedEpisode[]
 }
 
+const FEED_URL_KEY = "feedUrl"
+
 interface FeedUrlInputProps {
     collection: ManagedCollection
+    // Skip the on-mount auto-fetch even if a URL was saved from a previous
+    // run — used when the user explicitly navigates back to this screen to
+    // change the URL, so it doesn't immediately fetch the old one again.
+    skipAutoFetch?: boolean
     onFetched: (feed: FetchedFeed) => void
 }
 
-export function FeedUrlInput({ collection, onFetched }: FeedUrlInputProps) {
+export function FeedUrlInput({ collection, skipAutoFetch = false, onFetched }: FeedUrlInputProps) {
     const [feedUrl, setFeedUrl] = useState("")
-    const [isLoading, setIsLoading] = useState(false)
+    // Starts loading unless we're skipping auto-fetch, so the form doesn't
+    // flash empty for a moment before a saved URL is restored and fetched.
+    const [isLoading, setIsLoading] = useState(!skipAutoFetch)
     const [error, setError] = useState<string | null>(null)
 
-    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-
+    const runFetch = async (url: string) => {
         setIsLoading(true)
         setError(null)
 
         try {
-            const episodes = await fetchAndParseFeed(feedUrl)
+            const episodes = await fetchAndParseFeed(url)
             if (episodes.length === 0) {
                 throw new Error("This feed doesn't contain any episodes.")
             }
@@ -33,13 +39,44 @@ export function FeedUrlInput({ collection, onFetched }: FeedUrlInputProps) {
             const existingItemIds = new Set(await collection.getItemIds())
             const newEpisodes = getNewEpisodes(episodes, existingItemIds)
 
+            await collection.setPluginData(FEED_URL_KEY, url)
             onFetched({ episodes, newEpisodes })
         } catch (fetchError) {
             console.error(fetchError)
             setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch feed.")
-        } finally {
             setIsLoading(false)
         }
+    }
+
+    useEffect(() => {
+        let cancelled = false
+
+        collection.getPluginData(FEED_URL_KEY).then(stored => {
+            if (cancelled || !stored) {
+                setIsLoading(false)
+                return
+            }
+
+            setFeedUrl(stored)
+            if (!skipAutoFetch) {
+                void runFetch(stored)
+            } else {
+                setIsLoading(false)
+            }
+        })
+
+        return () => {
+            cancelled = true
+        }
+        // Only ever runs once per mount of this screen (re-mounted fresh via
+        // the "back" navigation from the preview screen), not on every
+        // feedUrl keystroke.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [collection, skipAutoFetch])
+
+    const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        void runFetch(feedUrl)
     }
 
     return (
